@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Esquilo Saltitante - NinJump Vertical</title>
+  <style>
+    /* RESET & BLOQUEIO GESTUAL */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0d131a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #ffffff;
+    }
+
+    /* FUNDO TEMÁTICO DE FLORESTA (DESKTOP) */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 30%, #1c2b36 0%, #0c161d 70%, #070d12 100%);
+      position: relative;
+    }
+
+    /* Silhuetas decorativas e instruções laterais de desktop */
+    .desktop-decor {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.95rem;
+      width: 220px;
+      line-height: 1.5;
+      pointer-events: none;
+      display: none;
+      padding: 18px 20px;
+      background: rgba(18, 30, 42, 0.65);
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .desktop-decor.left {
+      right: calc(50% + 235px);
+      text-align: right;
+    }
+
+    .desktop-decor.right {
+      left: calc(50% + 235px);
+      text-align: left;
+    }
+
+    .desktop-decor .icon {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .desktop-decor kbd {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      color: #ffd166;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    @media (min-width: 940px) {
+      .desktop-decor {
+        display: block;
+      }
+    }
+
+    /* MOLDURA DO JOGO (ARCADE / SMARTPHONE) */
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      overflow: hidden;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (min-width: 500px) and (min-height: 600px) {
+      #game-container {
+        width: 420px;
+        height: 92vh;
+        max-height: 840px;
+        border-radius: 36px;
+        border: 4px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 
+          0 0 0 1px rgba(0, 0, 0, 0.8),
+          0 25px 60px rgba(0, 0, 0, 0.85),
+          0 0 40px rgba(255, 179, 71, 0.15);
+      }
+    }
+
+    /* CANVAS 2D DO JOGO */
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    /* INTERFACES DE UI (HUD, MENUS, MODAIS) */
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    /* HUD SUPERIOR */
+    #hud {
+      display: none;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 16px 20px;
+      pointer-events: none;
+    }
+
+    .score-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0 auto;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+    }
+
+    .current-score {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+      color: #ffffff;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .current-score span.unit {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #ffd166;
+    }
+
+    .hud-sub {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .hud-record {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 10px;
+      border-radius: 12px;
+      backdrop-filter: blur(4px);
+    }
+
+    .acorn-counter {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #ffeaa7;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 10px;
+      border-radius: 12px;
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* BOTÃO DE MUTE/AUDIO */
+    .btn-audio {
+      pointer-events: auto;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 1.25rem;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.15s, background-color 0.2s;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .btn-audio:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* TELAS DE INÍCIO E GAME OVER */
+    .screen-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 18, 25, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      z-index: 20;
+    }
+
+    .screen-overlay.active {
+      display: flex;
+    }
+
+    @keyframes bounceIcon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .game-logo {
+      font-size: 2.3rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+      color: #fff;
+      line-height: 1.1;
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      margin-bottom: 6px;
+      background: linear-gradient(180deg, #ffeaa7 0%, #fab1a0 60%, #ff7675 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .game-subtitle {
+      font-size: 1rem;
+      color: #dfe6e9;
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+
+    .hero-badge {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 12px 24px;
+      margin-bottom: 28px;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .hero-badge .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 700;
+    }
+
+    .hero-badge .value {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ffd166;
+    }
+
+    /* BOTÃO PULSANTE */
+    .btn-main {
+      appearance: none;
+      border: none;
+      outline: none;
+      background: linear-gradient(135deg, #ff9f43 0%, #ee5253 100%);
+      color: #ffffff;
+      font-size: 1.25rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 16px 36px;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 
+        0 10px 25px rgba(238, 82, 83, 0.5),
+        inset 0 2px 0 rgba(255, 255, 255, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      animation: pulseBtn 1.8s infinite ease-in-out;
+    }
+
+    .btn-main:active {
+      transform: scale(0.94);
+      box-shadow: 0 4px 12px rgba(238, 82, 83, 0.4);
+    }
+
+    @keyframes pulseBtn {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 10px 25px rgba(238, 82, 83, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.35);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 14px 35px rgba(238, 82, 83, 0.75), inset 0 2px 0 rgba(255, 255, 255, 0.5);
+      }
+    }
+
+    .tutorial-tip {
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.7);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* GAME OVER CARD */
+    .gameover-card {
+      background: rgba(22, 34, 46, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-radius: 28px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 330px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .gameover-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #ff6b6b;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .stat-box {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-box .title {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .stat-box .num {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .new-record-tag {
+      grid-column: 1 / -1;
+      background: linear-gradient(90deg, #ff9f43, #feca57);
+      color: #222;
+      font-weight: 900;
+      font-size: 0.85rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      animation: recordGlow 1.2s infinite alternate;
+      display: none;
+    }
+
+    @keyframes recordGlow {
+      from { transform: scale(0.97); filter: drop-shadow(0 0 4px #feca57); }
+      to { transform: scale(1.03); filter: drop-shadow(0 0 14px #ff9f43); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Instruções laterais no Desktop -->
+  <aside class="desktop-decor left">
+    <span class="icon">🐿️</span>
+    <p>Pule rapidamente de uma árvore à outra!</p>
+    <p style="margin-top: 10px;"><kbd>ESPAÇO</kbd> ou <kbd>CLIQUE</kbd></p>
+  </aside>
+
+  <!-- MOLDURA DO JOGO -->
+  <main id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD SUPERIOR -->
+    <header class="ui-layer" id="hud">
+      <div style="width: 44px;"></div> <!-- Balancer -->
+      
+      <div class="score-container">
+        <div class="current-score" id="scoreDisplay">0 <span class="unit">m</span></div>
+        <div class="hud-sub">
+          <div class="hud-record">🏆 <span id="recordDisplay">0</span>m</div>
+          <div class="acorn-counter">🌰 <span id="acornDisplay">0</span></div>
+        </div>
+      </div>
+
+      <button class="btn-audio" id="muteBtn" title="Alternar Som" aria-label="Som">🔊</button>
+    </header>
+
+    <!-- TELA INICIAL -->
+    <section class="screen-overlay active" id="startScreen">
+      <div style="font-size: 3.5rem; margin-bottom: 8px; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4)); animation: bounceIcon 2s infinite ease-in-out;">🐿️</div>
+      <h1 class="game-logo">ESQUILO<br>SALTADOR</h1>
+      <p class="game-subtitle">Escale o mais alto que puder!</p>
+      
+      <div class="hero-badge">
+        <span class="label">Melhor Recorde</span>
+        <span class="value" id="startRecordDisplay">0 m</span>
+      </div>
+
+      <button class="btn-main" id="startBtn">TOQUE PARA JOGAR</button>
+
+      <div class="tutorial-tip">
+        <span>👆</span> Toque em qualquer lugar para pular de parede
+      </div>
+    </section>
+
+    <!-- TELA DE GAME OVER -->
+    <section class="screen-overlay" id="gameOverScreen">
+      <div class="gameover-card">
+        <h2 class="gameover-title">Fim de Jogo</h2>
+        
+        <div class="stats-grid">
+          <div class="new-record-tag" id="newRecordBadge">🎉 NOVO RECORDE! 🎉</div>
+          <div class="stat-box">
+            <span class="title">Distância</span>
+            <span class="num" id="finalDistance">0 m</span>
+          </div>
+          <div class="stat-box">
+            <span class="title">Frutas / Nozes</span>
+            <span class="num" id="finalAcorns">0</span>
+          </div>
+          <div class="stat-box" style="grid-column: 1 / -1;">
+            <span class="title">Pontuação Final</span>
+            <span class="num" style="color: #ffd166; font-size: 1.9rem;" id="finalScore">0</span>
+          </div>
+          <div class="stat-box" style="grid-column: 1 / -1;">
+            <span class="title">Recorde Atual</span>
+            <span class="num" style="font-size: 1.1rem; color: #a4b0be;" id="finalBest">0 m</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-main" id="restartBtn">JOGAR NOVAMENTE</button>
+    </section>
+  </main>
+
+  <!-- Instruções laterais no Desktop -->
+  <aside class="desktop-decor right">
+    <span class="icon">🌰</span>
+    <p>Colete frutas douradas para bônus de <strong>+10 pontos</strong>!</p>
+    <p style="margin-top: 10px; font-size: 0.85rem; color: #ffd166;">Desvie dos galhos e colmeias!</p>
+  </aside>
+
+  <!-- JAVASCRIPT DO JOGO (PURO E OFFLINE) -->
+  <script>
+  (() => {
+    'use strict';
+
+    /* ==========================================================================
+       1. SISTEMA DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.musicGain = null;
+        this.sfxGain = null;
+        this.isMuted = false;
+        this.isPlayingMusic = false;
+        this.musicStep = 0;
+        this.musicTimer = null;
+
+        // Escala pentatônica alegre em Dó Maior (Hz)
+        // C4, D4, E4, G4, A4, C5, D5, E5, G5
+        this.scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99];
+        // Sequência melódica cativante de 16 compassos
+        this.melody = [
+          0, 2, 4, 3,  2, 4, 5, 4,
+          3, 5, 7, 5,  4, 3, 2, 0
+        ];
+        // Linha de baixo suave (C3, G2, A2, F2)
+        this.bassNotes = [130.81, 98.00, 110.00, 87.31];
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.35;
+        this.masterGain.connect(this.ctx.destination);
+
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.value = 0.22;
+        this.musicGain.connect(this.masterGain);
+
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.8;
+        this.sfxGain.connect(this.masterGain);
+      }
+
+      resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.masterGain && this.ctx) {
+          const now = this.ctx.currentTime;
+          this.masterGain.gain.cancelScheduledValues(now);
+          this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+          this.masterGain.gain.linearRampToValueAtTime(this.isMuted ? 0 : 0.35, now + 0.05);
+        }
+        return this.isMuted;
+      }
+
+      // EFEITO SONORO: PULO (Chirp ascendente suave)
+      playJump() {
+        if (!this.ctx || this.isMuted) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(620, now + 0.14);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+
+      // EFEITO SONORO: POUSO NA PAREDE (Toque abafado na madeira)
+      playLand() {
+        if (!this.ctx || this.isMuted) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.09);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(320, now);
+
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+
+      // EFEITO SONORO: COLETA DE FRUTA (Arpejo agudo de duas notas)
+      playCollect() {
+        if (!this.ctx || this.isMuted) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        
+        [0, 0.07].forEach((delay, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const freq = idx === 0 ? 880 : 1318.51; // A5 -> E6
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + delay);
+
+          gain.gain.setValueAtTime(0.25, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.16);
+
+          osc.connect(gain);
+          gain.connect(this.sfxGain);
+
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.18);
+        });
+      }
+
+      // EFEITO SONORO: NOVO RECORDE (Fanfarra de 3 notas)
+      playFanfare() {
+        if (!this.ctx || this.isMuted) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        
+        notes.forEach((freq, idx) => {
+          const t = now + idx * 0.11;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t);
+
+          const dur = (idx === notes.length - 1) ? 0.45 : 0.14;
+          gain.gain.setValueAtTime(0.28, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+          osc.connect(gain);
+          gain.connect(this.sfxGain);
+
+          osc.start(t);
+          osc.stop(t + dur + 0.02);
+        });
+      }
+
+      // EFEITO SONORO: COLISÃO / GAME OVER (Tom descendente e baque)
+      playGameOver() {
+        if (!this.ctx || this.isMuted) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(65, now + 0.45);
+
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+
+      // MÚSICA DE FUNDO PROCEDURAL EM LOOP
+      startMusic() {
+        if (this.isPlayingMusic) return;
+        this.init();
+        this.resume();
+        this.isPlayingMusic = true;
+        this.musicStep = 0;
+        this.scheduleNextNote();
+      }
+
+      scheduleNextNote() {
+        if (!this.isPlayingMusic || !this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const step = this.musicStep;
+        const noteIndex = this.melody[step % this.melody.length];
+        const freq = this.scale[noteIndex];
+
+        // 1. Nota melódica (Triangle suave com envelope tipo marimba/pluck)
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+        osc.connect(gain);
+        gain.connect(this.musicGain);
+
+        osc.start(now);
+        osc.stop(now + 0.24);
+
+        // 2. Linha de baixo nos tempos fortes (cada 4 passos)
+        if (step % 4 === 0) {
+          const bassOsc = this.ctx.createOscillator();
+          const bassGain = this.ctx.createGain();
+          const chordIdx = Math.floor(step / 4) % this.bassNotes.length;
+          const bassFreq = this.bassNotes[chordIdx];
+
+          bassOsc.type = 'sine';
+          bassOsc.frequency.setValueAtTime(bassFreq, now);
+
+          bassGain.gain.setValueAtTime(0.001, now);
+          bassGain.gain.linearRampToValueAtTime(0.18, now + 0.04);
+          bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+
+          bassOsc.connect(bassGain);
+          bassGain.connect(this.musicGain);
+
+          bassOsc.start(now);
+          bassOsc.stop(now + 0.45);
+        }
+
+        this.musicStep++;
+        // Próximo passo em 160ms (aprox. 94 BPM em semicolcheias suaves)
+        this.musicTimer = setTimeout(() => this.scheduleNextNote(), 160);
+      }
+
+      stopMusic() {
+        this.isPlayingMusic = false;
+        if (this.musicTimer) {
+          clearTimeout(this.musicTimer);
+          this.musicTimer = null;
+        }
+      }
+    }
+
+    const audio = new SoundEngine();
+
+    /* ==========================================================================
+       2. CONFIGURAÇÕES VISUAIS E DO CANVAS
+       ========================================================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('game-container');
+
+    // Elementos de UI
+    const hud = document.getElementById('hud');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const recordDisplay = document.getElementById('recordDisplay');
+    const acornDisplay = document.getElementById('acornDisplay');
+    const muteBtn = document.getElementById('muteBtn');
+
+    const startScreen = document.getElementById('startScreen');
+    const startRecordDisplay = document.getElementById('startRecordDisplay');
+    const startBtn = document.getElementById('startBtn');
+
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalDistance = document.getElementById('finalDistance');
+    const finalAcorns = document.getElementById('finalAcorns');
+    const finalScore = document.getElementById('finalScore');
+    const finalBest = document.getElementById('finalBest');
+    const newRecordBadge = document.getElementById('newRecordBadge');
+    const restartBtn = document.getElementById('restartBtn');
+
+    // Resolução lógica interna padrão
+    const VIRTUAL_WIDTH = 400;
+    let virtualHeight = 700;
+    let scaleRatio = 1;
+
+    function resizeCanvas() {
+      const rect = container.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5); // Proteção contra DPR excessivo
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      scaleRatio = canvas.width / VIRTUAL_WIDTH;
+      virtualHeight = canvas.height / scaleRatio;
+
+      ctx.imageSmoothingEnabled = true;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /* ==========================================================================
+       3. ESTADO GLOBAL DO JOGO
+       ========================================================================== */
+    const WALL_WIDTH = 48; // Largura do tronco das árvores laterais
+    let highScore = parseInt(localStorage.getItem('esquilo_high_score') || '0', 10);
+    startRecordDisplay.textContent = `${highScore} m`;
+    recordDisplay.textContent = highScore;
+
+    let gameState = 'START'; // 'START' | 'PLAYING' | 'GAMEOVER'
+    let distanceClimbed = 0;
+    let acornsCollected = 0;
+    let totalScore = 0;
+    let hasBeatRecordThisRun = false;
+    let restartAllowed = true;
+
+    // Velocidade de subida progressiva e equilibrada
+    const BASE_SPEED = 240;      // pixels por segundo
+    const MAX_SPEED = 480;       // limite confortável para todas as idades
+    let currentSpeed = BASE_SPEED;
+    let scrollYOffset = 0;
+
+    // Efeito de tremor de tela (Screen Shake)
+    let screenShake = 0;
+
+    /* ==========================================================================
+       4. PERSONAGEM (ESQUILO ESTILIZADO EM VETOR)
+       ========================================================================== */
+    const player = {
+      side: 'LEFT', // 'LEFT' ou 'RIGHT'
+      x: WALL_WIDTH + 8,
+      y: 0,
+      width: 34,
+      height: 38,
+      isJumping: false,
+      jumpProgress: 0, // 0 a 1
+      jumpDuration: 0.35, // segundos
+      jumpStartX: 0,
+      jumpTargetX: 0,
+      rotation: 0,
+      runAnimTime: 0,
+      squashX: 1,
+      squashY: 1,
+
+      reset() {
+        this.side = 'LEFT';
+        this.x = WALL_WIDTH + 8;
+        this.y = virtualHeight * 0.72;
+        this.isJumping = false;
+        this.jumpProgress = 0;
+        this.rotation = 0;
+        this.runAnimTime = 0;
+        this.squashX = 1;
+        this.squashY = 1;
+      },
+
+      jump() {
+        if (this.isJumping || gameState !== 'PLAYING') return;
+
+        this.isJumping = true;
+        this.jumpProgress = 0;
+        this.jumpStartX = this.x;
+        this.jumpTargetX = (this.side === 'LEFT') 
+          ? (VIRTUAL_WIDTH - WALL_WIDTH - 8) 
+          : (WALL_WIDTH + 8);
+
+        audio.playJump();
+
+        // Partículas na saída do salto
+        createLeavesBurst(this.x, this.y, (this.side === 'LEFT' ? 1 : -1));
+      },
+
+      update(dt) {
+        this.runAnimTime += dt;
+
+        // Recuperação gradual do squash & stretch
+        this.squashX += (1 - this.squashX) * 15 * dt;
+        this.squashY += (1 - this.squashY) * 15 * dt;
+
+        if (this.isJumping) {
+          this.jumpProgress += dt / this.jumpDuration;
+
+          if (this.jumpProgress >= 1) {
+            // Aterrissagem na parede oposta
+            this.jumpProgress = 1;
+            this.isJumping = false;
+            this.side = (this.side === 'LEFT') ? 'RIGHT' : 'LEFT';
+            this.x = this.jumpTargetX;
+            this.rotation = 0;
+
+            // Feedback de pouso
+            this.squashX = 1.3;
+            this.squashY = 0.75;
+            audio.playLand();
+            createLeavesBurst(this.x, this.y, (this.side === 'LEFT' ? 1 : -1));
+          } else {
+            // Interpolação suave em arco (Ease In Out Quad)
+            const t = this.jumpProgress;
+            const easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            this.x = this.jumpStartX + (this.jumpTargetX - this.jumpStartX) * easeT;
+
+            // Arco suave vertical (sobe um pouco no meio do pulo)
+            const arcOffset = Math.sin(t * Math.PI) * 24;
+            this.arcY = -arcOffset;
+
+            // Rotação acrobática durante o giro
+            const dir = (this.jumpTargetX > this.jumpStartX) ? 1 : -1;
+            this.rotation = easeT * Math.PI * 2 * dir;
+          }
+        } else {
+          this.arcY = 0;
+          this.rotation = 0;
+          // Posição firme no tronco
+          this.x = (this.side === 'LEFT') ? (WALL_WIDTH + 8) : (VIRTUAL_WIDTH - WALL_WIDTH - 8);
+        }
+      },
+
+      draw(c) {
+        c.save();
+        const renderY = this.y + (this.arcY || 0);
+        c.translate(this.x, renderY);
+
+        if (this.isJumping) {
+          c.rotate(this.rotation);
+        } else {
+          // Espelha o personagem quando estiver na parede direita
+          if (this.side === 'RIGHT') {
+            c.scale(-1, 1);
+          }
+        }
+
+        // Aplica efeito squash & stretch
+        c.scale(this.squashX, this.squashY);
+
+        // Animação de corrida (balanço leve do corpo e cauda)
+        const runWobble = this.isJumping ? 0 : Math.sin(this.runAnimTime * 22) * 2.5;
+        const tailWobble = this.isJumping ? 0 : Math.sin(this.runAnimTime * 18) * 0.22;
+
+        /* --- 1. CAUDA FELPUDA ANIMADA --- */
+        c.save();
+        c.translate(-8, 8 + runWobble);
+        c.rotate(tailWobble - 0.2);
+        
+        // Cauda externa (laranja fofo)
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.bezierCurveTo(-22, -10, -28, -36, -8, -44);
+        c.bezierCurveTo(4, -50, 14, -32, 2, -16);
+        c.closePath();
+        c.fillStyle = '#D96B27';
+        c.fill();
+
+        // Camada interna mais clara da cauda
+        c.beginPath();
+        c.moveTo(-4, -6);
+        c.bezierCurveTo(-16, -14, -20, -32, -6, -38);
+        c.bezierCurveTo(2, -42, 8, -28, 0, -14);
+        c.closePath();
+        c.fillStyle = '#F5A25D';
+        c.fill();
+        c.restore();
+
+        /* --- 2. CORPO DO ESQUILO --- */
+        c.save();
+        c.translate(0, runWobble);
+
+        // Tronco / dorso
+        c.beginPath();
+        c.ellipse(0, 4, 12, 16, 0.1, 0, Math.PI * 2);
+        c.fillStyle = '#E67E22';
+        c.fill();
+
+        // Barriguinha clara
+        c.beginPath();
+        c.ellipse(4, 5, 7, 11, 0.1, 0, Math.PI * 2);
+        c.fillStyle = '#FDEBD0';
+        c.fill();
+
+        /* --- 3. PATINHAS (ANIMAÇÃO DE ESCALADA) --- */
+        const legCycle = Math.sin(this.runAnimTime * 24);
+        // Patas dianteiras
+        c.fillStyle = '#BA4A00';
+        c.beginPath();
+        c.ellipse(11, -2 + (this.isJumping ? -4 : legCycle * 3), 4, 2.5, 0.3, 0, Math.PI * 2);
+        c.fill();
+        // Patas traseiras
+        c.beginPath();
+        c.ellipse(8, 14 + (this.isJumping ? 3 : -legCycle * 3), 5, 3, -0.2, 0, Math.PI * 2);
+        c.fill();
+
+        /* --- 4. CABEÇA E ORELHAS --- */
+        // Orelhas
+        c.beginPath();
+        c.ellipse(-3, -16, 4, 7, -0.2, 0, Math.PI * 2);
+        c.fillStyle = '#D35400';
+        c.fill();
+        c.beginPath();
+        c.ellipse(-3, -16, 2, 4.5, -0.2, 0, Math.PI * 2);
+        c.fillStyle = '#FAD7A0';
+        c.fill();
+
+        // Cabeça
+        c.beginPath();
+        c.ellipse(3, -9, 10, 9, 0.1, 0, Math.PI * 2);
+        c.fillStyle = '#E67E22';
+        c.fill();
+
+        // Bochechas rosadas
+        c.beginPath();
+        c.arc(7, -6, 3, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(255, 118, 117, 0.55)';
+        c.fill();
+
+        // Olho brilhante expressivo
+        c.beginPath();
+        c.arc(6, -11, 3.2, 0, Math.PI * 2);
+        c.fillStyle = '#1e272e';
+        c.fill();
+        // Brilho do olho
+        c.beginPath();
+        c.arc(7.2, -12.2, 1.2, 0, Math.PI * 2);
+        c.fillStyle = '#ffffff';
+        c.fill();
+
+        // Focinho e nariz
+        c.beginPath();
+        c.arc(12, -8, 2.2, 0, Math.PI * 2);
+        c.fillStyle = '#2C3E50';
+        c.fill();
+
+        c.restore();
+        c.restore();
+      }
+    };
+
+    /* ==========================================================================
+       5. GERENCIAMENTO DE OBSTÁCULOS E ITENS COLETÁVEIS
+       ========================================================================== */
+    const obstacles = [];
+    const items = [];
+    const floatingTexts = [];
+    const particles = [];
+
+    // Distância mínima de segurança rigorosamente garantida (mínimo 240px)
+    const MIN_SAFE_DISTANCE = 240;
+    let lastObstacleY = -100;
+    let lastObstacleSide = 'LEFT';
+
+    class Obstacle {
+      constructor(y, side, type) {
+        this.y = y;
+        this.side = side; // 'LEFT' ou 'RIGHT'
+        this.type = type; // 'BRANCH', 'BEEHIVE' ou 'VINE'
+        this.width = (type === 'BRANCH') ? 95 : ((type === 'BEEHIVE') ? 68 : 88);
+        this.height = (type === 'BRANCH') ? 34 : ((type === 'BEEHIVE') ? 44 : 36);
+        
+        if (this.side === 'LEFT') {
+          this.x = 0;
+        } else {
+          this.x = VIRTUAL_WIDTH - this.width;
+        }
+
+        // Animação de abelhas ou balanço do cipó
+        this.animTimer = Math.random() * 10;
+      }
+
+      update(dt, speed) {
+        this.y += speed * dt;
+        this.animTimer += dt;
+      }
+
+      // Caixa de colisão 30% menor que o desenho visual (perdão amigável)
+      getHitbox() {
+        const insetX = this.width * 0.15;
+        const insetY = this.height * 0.18;
+        return {
+          x: this.x + insetX,
+          y: this.y + insetY,
+          width: this.width * 0.70,
+          height: this.height * 0.64
+        };
+      }
+
+      draw(c) {
+        c.save();
+        if (this.type === 'BRANCH') {
+          // Galho de árvore estilizado
+          c.save();
+          if (this.side === 'RIGHT') {
+            c.translate(VIRTUAL_WIDTH, this.y);
+            c.scale(-1, 1);
+          } else {
+            c.translate(0, this.y);
+          }
+
+          // Madeira do galho
+          c.beginPath();
+          c.moveTo(0, 10);
+          c.quadraticCurveTo(50, 6, this.width, 18);
+          c.lineTo(this.width - 15, 26);
+          c.quadraticCurveTo(40, 24, 0, 32);
+          c.closePath();
+          c.fillStyle = '#5A3825';
+          c.fill();
+
+          // Sombra interna
+          c.beginPath();
+          c.moveTo(0, 22);
+          c.quadraticCurveTo(40, 24, this.width - 15, 26);
+          c.lineTo(0, 32);
+          c.fillStyle = '#3E2517';
+          c.fill();
+
+          // Folhas verdes na ponta
+          c.beginPath();
+          c.ellipse(this.width - 6, 16, 12, 7, 0.4, 0, Math.PI * 2);
+          c.fillStyle = '#27ae60';
+          c.fill();
+          c.beginPath();
+          c.ellipse(this.width + 4, 14, 8, 5, -0.3, 0, Math.PI * 2);
+          c.fillStyle = '#2ecc71';
+          c.fill();
+
+          c.restore();
+
+        } else if (this.type === 'BEEHIVE') {
+          // Colmeia presa a um ramo
+          c.save();
+          const centerX = (this.side === 'LEFT') ? 48 : (VIRTUAL_WIDTH - 48);
+          const topBranchY = this.y + 6;
+
+          // Pequeno ramo de suporte
+          c.beginPath();
+          if (this.side === 'LEFT') {
+            c.moveTo(0, topBranchY - 4);
+            c.lineTo(centerX + 6, topBranchY);
+          } else {
+            c.moveTo(VIRTUAL_WIDTH, topBranchY - 4);
+            c.lineTo(centerX - 6, topBranchY);
+          }
+          c.lineWidth = 6;
+          c.lineCap = 'round';
+          c.strokeStyle = '#5A3825';
+          c.stroke();
+
+          // Corpo da colmeia (camadas amarelas)
+          const hiveY = topBranchY + 18;
+          c.fillStyle = '#F39C12';
+          c.beginPath();
+          c.ellipse(centerX, hiveY - 8, 14, 6, 0, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#F1C40F';
+          c.beginPath();
+          c.ellipse(centerX, hiveY, 18, 8, 0, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#F39C12';
+          c.beginPath();
+          c.ellipse(centerX, hiveY + 8, 14, 6, 0, 0, Math.PI * 2);
+          c.fill();
+          // Entrada da colmeia
+          c.beginPath();
+          c.ellipse(centerX, hiveY + 2, 4.5, 5, 0, 0, Math.PI * 2);
+          c.fillStyle = '#7E5109';
+          c.fill();
+
+          // Abelha pequenina animada voando em volta
+          const beeAngle = this.animTimer * 5;
+          const beeX = centerX + Math.cos(beeAngle) * 18;
+          const beeY = hiveY + Math.sin(beeAngle) * 10;
+
+          c.beginPath();
+          c.ellipse(beeX, beeY, 3.5, 2.5, 0, 0, Math.PI * 2);
+          c.fillStyle = '#F1C40F';
+          c.fill();
+          // Asas da abelha
+          c.beginPath();
+          c.ellipse(beeX - 1, beeY - 3, 2, 3, -0.4, 0, Math.PI * 2);
+          c.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          c.fill();
+
+          c.restore();
+
+        } else if (this.type === 'VINE') {
+          // Varal de cipó com espinhos afiados
+          c.save();
+          if (this.side === 'RIGHT') {
+            c.translate(VIRTUAL_WIDTH, this.y);
+            c.scale(-1, 1);
+          } else {
+            c.translate(0, this.y);
+          }
+
+          const sway = Math.sin(this.animTimer * 3.5) * 2;
+
+          // Haste / Cipó
+          c.beginPath();
+          c.moveTo(0, 10);
+          c.quadraticCurveTo(this.width * 0.45, 22 + sway, this.width, 12);
+          c.lineWidth = 4.5;
+          c.strokeStyle = '#41631e';
+          c.lineCap = 'round';
+          c.stroke();
+
+          // Espinhos afiados
+          const thorns = [
+            { x: this.width * 0.28, y: 15 + sway * 0.4 },
+            { x: this.width * 0.58, y: 19 + sway * 0.8 },
+            { x: this.width * 0.85, y: 14 + sway * 0.3 }
+          ];
+
+          c.fillStyle = '#c0392b';
+          for (const t of thorns) {
+            c.beginPath();
+            c.moveTo(t.x - 3.5, t.y);
+            c.lineTo(t.x, t.y + 9);
+            c.lineTo(t.x + 3.5, t.y);
+            c.closePath();
+            c.fill();
+          }
+
+          // Folhas decorativas
+          c.fillStyle = '#27ae60';
+          c.beginPath();
+          c.ellipse(this.width * 0.4, 16 + sway * 0.6, 6, 3.5, 0.4, 0, Math.PI * 2);
+          c.fill();
+          c.beginPath();
+          c.ellipse(this.width * 0.72, 17 + sway * 0.7, 5, 3, -0.3, 0, Math.PI * 2);
+          c.fill();
+
+          c.restore();
+        }
+        c.restore();
+      }
+    }
+
+    class AcornItem {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.size = 20;
+        this.timer = Math.random() * 5;
+      }
+
+      update(dt, speed) {
+        this.y += speed * dt;
+        this.timer += dt;
+      }
+
+      getHitbox() {
+        return {
+          x: this.x - 12,
+          y: this.y - 12,
+          width: 24,
+          height: 24
+        };
+      }
+
+      draw(c) {
+        c.save();
+        const floatY = this.y + Math.sin(this.timer * 5) * 4;
+        c.translate(this.x, floatY);
+
+        // Brilho / Aura dourada
+        const pulse = 0.5 + Math.sin(this.timer * 7) * 0.25;
+        const grad = c.createRadialGradient(0, 0, 2, 0, 0, 24);
+        grad.addColorStop(0, `rgba(255, 215, 0, ${pulse * 0.7})`);
+        grad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+        c.fillStyle = grad;
+        c.beginPath();
+        c.arc(0, 0, 24, 0, Math.PI * 2);
+        c.fill();
+
+        // Chapéu da noz (cúpula marrom)
+        c.beginPath();
+        c.arc(0, -5, 8, Math.PI, 0, false);
+        c.fillStyle = '#873600';
+        c.fill();
+        // Talinho
+        c.beginPath();
+        c.moveTo(0, -5);
+        c.quadraticCurveTo(2, -11, 4, -12);
+        c.lineWidth = 2;
+        c.strokeStyle = '#5E2600';
+        c.stroke();
+
+        // Corpo dourado da noz
+        c.beginPath();
+        c.moveTo(-7.5, -5);
+        c.quadraticCurveTo(-7.5, 6, 0, 11);
+        c.quadraticCurveTo(7.5, 6, 7.5, -5);
+        c.closePath();
+        c.fillStyle = '#F39C12';
+        c.fill();
+
+        // Reflexo de brilho
+        c.beginPath();
+        c.ellipse(-3, 0, 2, 4, -0.3, 0, Math.PI * 2);
+        c.fillStyle = '#F9E79F';
+        c.fill();
+
+        c.restore();
+      }
+    }
+
+    /* ==========================================================================
+       6. SISTEMA DE PARTÍCULAS E TEXTOS FLUTUANTES ("JUICE")
+       ========================================================================== */
+    function createLeavesBurst(x, y, dirX) {
+      for (let i = 0; i < 9; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() * 80 + 30) * dirX,
+          vy: (Math.random() - 0.6) * 90,
+          rot: Math.random() * Math.PI,
+          vRot: (Math.random() - 0.5) * 8,
+          size: Math.random() * 5 + 4,
+          color: Math.random() > 0.5 ? '#27ae60' : '#8D6E63',
+          life: 0.6,
+          maxLife: 0.6
+        });
+      }
+    }
+
+    function createStarSparkles(x, y) {
+      for (let i = 0; i < 12; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 120 + 40;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          rot: 0,
+          vRot: 0,
+          size: Math.random() * 4 + 3,
+          color: Math.random() > 0.4 ? '#f1c40f' : '#ffffff',
+          life: 0.5,
+          maxLife: 0.5,
+          isStar: true
+        });
+      }
+    }
+
+    function addFloatingText(text, x, y) {
+      floatingTexts.push({
+        text: text,
+        x: x,
+        y: y,
+        vy: -55,
+        alpha: 1,
+        life: 0.8
+      });
+    }
+
+    function updateParticlesAndTexts(dt) {
+      // Partículas
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 120 * dt; // gravidade leve
+        p.rot += p.vRot * dt;
+      }
+
+      // Textos flutuantes
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.life -= dt;
+        if (ft.life <= 0) {
+          floatingTexts.splice(i, 1);
+          continue;
+        }
+        ft.y += ft.vy * dt;
+        ft.alpha = ft.life / 0.8;
+      }
+    }
+
+    function drawParticlesAndTexts(c) {
+      // Partículas
+      for (const p of particles) {
+        c.save();
+        c.translate(p.x, p.y);
+        c.rotate(p.rot);
+        c.globalAlpha = Math.max(0, p.life / p.maxLife);
+        c.fillStyle = p.color;
+
+        if (p.isStar) {
+          c.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        } else {
+          c.beginPath();
+          c.ellipse(0, 0, p.size, p.size * 0.5, 0, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.restore();
+      }
+
+      // Textos flutuantes
+      for (const ft of floatingTexts) {
+        c.save();
+        c.font = 'bold 22px system-ui, sans-serif';
+        c.textAlign = 'center';
+        c.fillStyle = `rgba(255, 215, 0, ${ft.alpha})`;
+        c.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        c.shadowBlur = 6;
+        c.fillText(ft.text, ft.x, ft.y);
+        c.restore();
+      }
+    }
+
+    /* ==========================================================================
+       7. GERAÇÃO JUSTA E INTELIGENTE DO PERCURSO
+       ========================================================================== */
+    function spawnCourseElements() {
+      // Gera obstáculos sempre acima do topo da tela
+      if (lastObstacleY > -50) {
+        const gap = MIN_SAFE_DISTANCE + Math.random() * 80;
+        const newY = lastObstacleY - gap;
+
+        // Alterna ou seleciona o lado mantendo distância estrita
+        let side;
+        if (Math.random() < 0.65) {
+          side = (lastObstacleSide === 'LEFT') ? 'RIGHT' : 'LEFT';
+        } else {
+          side = Math.random() < 0.5 ? 'LEFT' : 'RIGHT';
+        }
+
+        const typeRoll = Math.random();
+        const type = typeRoll < 0.42 ? 'BRANCH' : (typeRoll < 0.72 ? 'BEEHIVE' : 'VINE');
+        obstacles.push(new Obstacle(newY, side, type));
+
+        lastObstacleY = newY;
+        lastObstacleSide = side;
+
+        // Chance de gerar uma noz dourada para recompensa
+        if (Math.random() < 0.5) {
+          // No meio do caminho (desafio de salto) ou no lado oposto seguro
+          const itemY = newY + gap * 0.5;
+          let itemX;
+          if (Math.random() < 0.5) {
+            itemX = VIRTUAL_WIDTH * 0.5; // Meio do salto!
+          } else {
+            itemX = (side === 'LEFT') ? (VIRTUAL_WIDTH - WALL_WIDTH - 12) : (WALL_WIDTH + 12);
+          }
+          items.push(new AcornItem(itemX, itemY));
+        }
+      }
+    }
+
+    /* ==========================================================================
+       8. RENDERIZAÇÃO DO CENÁRIO, ÁRVORES E CÉU DINÂMICO
+       ========================================================================== */
+    // Estrelas fixas para o céu noturno
+    const stars = Array.from({ length: 45 }, () => ({
+      x: Math.random() * VIRTUAL_WIDTH,
+      y: Math.random() * 900,
+      size: Math.random() * 1.8 + 0.8,
+      twinkleOffset: Math.random() * Math.PI * 2
+    }));
+
+    // Nuvens de paralaxe
+    const clouds = [
+      { x: 50, y: 120, width: 85, speed: 0.15 },
+      { x: 220, y: 340, width: 110, speed: 0.2 },
+      { x: 140, y: 580, width: 95, speed: 0.18 }
+    ];
+
+    function drawEnvironment(c, dt) {
+      // 1. Transição de cor do céu baseada na pontuação
+      // 0 - 300m: Manhã ensolarada
+      // 300 - 800m: Pôr do sol alaranjado
+      // 800m+: Noite estrelada
+      let skyTop, skyBottom;
+      const m = distanceClimbed;
+
+      if (m < 300) {
+        const factor = m / 300;
+        skyTop = interpolateColor([79, 172, 254], [44, 62, 80], factor);
+        skyBottom = interpolateColor([0, 242, 254], [253, 116, 108], factor);
+      } else if (m < 850) {
+        const factor = (m - 300) / 550;
+        skyTop = interpolateColor([44, 62, 80], [11, 14, 20], factor);
+        skyBottom = interpolateColor([253, 116, 108], [30, 39, 64], factor);
+      } else {
+        skyTop = 'rgb(11, 14, 20)';
+        skyBottom = 'rgb(24, 32, 54)';
+      }
+
+      const skyGrad = c.createLinearGradient(0, 0, 0, virtualHeight);
+      skyGrad.addColorStop(0, skyTop);
+      skyGrad.addColorStop(1, skyBottom);
+      c.fillStyle = skyGrad;
+      c.fillRect(0, 0, VIRTUAL_WIDTH, virtualHeight);
+
+      // Estrelas (aparecem conforme a noite cai)
+      if (m > 350) {
+        const starAlpha = Math.min(1, (m - 350) / 450);
+        const time = Date.now() * 0.003;
+        for (const star of stars) {
+          const starY = (star.y + scrollYOffset * 0.1) % virtualHeight;
+          const tw = 0.5 + Math.sin(time + star.twinkleOffset) * 0.5;
+          c.fillStyle = `rgba(255, 255, 255, ${starAlpha * tw * 0.85})`;
+          c.beginPath();
+          c.arc(star.x, starY, star.size, 0, Math.PI * 2);
+          c.fill();
+        }
+
+        // Lua crescente graciosa à noite
+        if (m > 650) {
+          const moonAlpha = Math.min(1, (m - 650) / 300);
+          c.save();
+          c.globalAlpha = moonAlpha;
+          c.fillStyle = '#fff9d2';
+          c.beginPath();
+          c.arc(VIRTUAL_WIDTH * 0.75, 110, 22, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = skyTop;
+          c.beginPath();
+          c.arc(VIRTUAL_WIDTH * 0.75 - 7, 106, 18, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+        }
+      }
+
+      // Nuvens em paralaxe
+      for (const cloud of clouds) {
+        cloud.y = (cloud.y + currentSpeed * dt * cloud.speed) % (virtualHeight + 100);
+        c.save();
+        c.fillStyle = (m > 750) ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.28)';
+        c.beginPath();
+        c.ellipse(cloud.x, cloud.y - 50, cloud.width * 0.5, 18, 0, 0, Math.PI * 2);
+        c.ellipse(cloud.x - 18, cloud.y - 50, cloud.width * 0.3, 14, 0, 0, Math.PI * 2);
+        c.ellipse(cloud.x + 18, cloud.y - 50, cloud.width * 0.35, 15, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+
+      // 2. Troncos das árvores laterais com textura e folhagens
+      drawTreeWall(c, 0, WALL_WIDTH, true);
+      drawTreeWall(c, VIRTUAL_WIDTH - WALL_WIDTH, WALL_WIDTH, false);
+    }
+
+    function drawTreeWall(c, x, width, isLeft) {
+      c.save();
+      // Casca da árvore
+      c.fillStyle = '#5A3825';
+      c.fillRect(x, 0, width, virtualHeight);
+
+      // Sombra interna da quina
+      c.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      if (isLeft) {
+        c.fillRect(x + width - 8, 0, 8, virtualHeight);
+      } else {
+        c.fillRect(x, 0, 8, virtualHeight);
+      }
+
+      // Ranhuras da madeira que rolam com a subida
+      const barkScroll = scrollYOffset % 60;
+      c.strokeStyle = '#432818';
+      c.lineWidth = 2.5;
+      for (let y = -60 + barkScroll; y < virtualHeight + 60; y += 45) {
+        c.beginPath();
+        const startX = isLeft ? x + 10 : x + width - 10;
+        const endX = isLeft ? x + width - 14 : x + 14;
+        c.moveTo(startX, y);
+        c.quadraticCurveTo((startX + endX) / 2, y + 14, endX, y + 4);
+        c.stroke();
+      }
+
+      // Tufos de folhas verdes saindo do tronco
+      const leafScroll = scrollYOffset % 140;
+      c.fillStyle = '#27ae60';
+      for (let y = -140 + leafScroll; y < virtualHeight + 140; y += 110) {
+        c.beginPath();
+        const leafX = isLeft ? x + width : x;
+        const dir = isLeft ? 1 : -1;
+        c.ellipse(leafX + 4 * dir, y, 12, 6, 0.3 * dir, 0, Math.PI * 2);
+        c.fill();
+      }
+
+      c.restore();
+    }
+
+    function interpolateColor(c1, c2, factor) {
+      const f = Math.max(0, Math.min(1, factor));
+      const r = Math.round(c1[0] + (c2[0] - c1[0]) * f);
+      const g = Math.round(c1[1] + (c2[1] - c1[1]) * f);
+      const b = Math.round(c1[2] + (c2[2] - c1[2]) * f);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    /* ==========================================================================
+       9. COLISÕES E FÍSICA
+       ========================================================================== */
+    function checkAABBCollision(box1, box2) {
+      return (
+        box1.x < box2.x + box2.width &&
+        box1.x + box1.width > box2.x &&
+        box1.y < box2.y + box2.height &&
+        box1.y + box1.height > box2.y
+      );
+    }
+
+    function checkCollisions() {
+      if (gameState !== 'PLAYING') return;
+
+      const playerBox = {
+        x: player.x - player.width * 0.4,
+        y: player.y + (player.arcY || 0) - player.height * 0.4,
+        width: player.width * 0.8,
+        height: player.height * 0.8
+      };
+
+      // 1. Colisão com Obstáculos
+      for (const obs of obstacles) {
+        if (checkAABBCollision(playerBox, obs.getHitbox())) {
+          triggerGameOver();
+          return;
+        }
+      }
+
+      // 2. Colisão com Frutas/Nozes Douradas
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        if (checkAABBCollision(playerBox, item.getHitbox())) {
+          acornsCollected++;
+          totalScore += 10;
+          acornDisplay.textContent = acornsCollected;
+          scoreDisplay.innerHTML = `${totalScore} <span class="unit">m</span>`;
+
+          audio.playCollect();
+          createStarSparkles(item.x, item.y);
+          addFloatingText('+10!', item.x, item.y);
+
+          items.splice(i, 1);
+        }
+      }
+    }
+
+    /* ==========================================================================
+       10. FLUXO DO JOGO (INÍCIO, GAME OVER, RESTART)
+       ========================================================================== */
+    function startGame() {
+      audio.init();
+      audio.resume();
+      audio.startMusic();
+
+      gameState = 'PLAYING';
+      distanceClimbed = 0;
+      acornsCollected = 0;
+      totalScore = 0;
+      currentSpeed = BASE_SPEED;
+      scrollYOffset = 0;
+      hasBeatRecordThisRun = false;
+
+      obstacles.length = 0;
+      items.length = 0;
+      particles.length = 0;
+      floatingTexts.length = 0;
+
+      lastObstacleY = -120;
+      lastObstacleSide = 'LEFT';
+
+      player.reset();
+
+      // Atualiza interface
+      scoreDisplay.innerHTML = `0 <span class="unit">m</span>`;
+      acornDisplay.textContent = '0';
+      recordDisplay.textContent = highScore;
+      hud.style.display = 'flex';
+      startScreen.classList.remove('active');
+      gameOverScreen.classList.remove('active');
+    }
+
+    function triggerGameOver() {
+      gameState = 'GAMEOVER';
+      screenShake = 18; // Ativa tremor de impacto
+      audio.stopMusic();
+      audio.playGameOver();
+
+      // Partículas de derrota
+      createLeavesBurst(player.x, player.y, 1);
+      createLeavesBurst(player.x, player.y, -1);
+
+      // Verificação de recorde
+      const isNewRecord = totalScore > highScore;
+      if (isNewRecord) {
+        highScore = totalScore;
+        localStorage.setItem('esquilo_high_score', highScore.toString());
+        newRecordBadge.style.display = 'block';
+        audio.playFanfare();
+      } else {
+        newRecordBadge.style.display = 'none';
+      }
+
+      // Preenchimento do painel de Game Over
+      finalDistance.textContent = `${distanceClimbed} m`;
+      finalAcorns.textContent = `${acornsCollected}`;
+      finalScore.textContent = `${totalScore}`;
+      finalBest.textContent = `${highScore} m`;
+
+      // Pequeno atraso de 400ms para evitar toques acidentais
+      restartAllowed = false;
+      setTimeout(() => {
+        restartAllowed = true;
+      }, 400);
+
+      setTimeout(() => {
+        gameOverScreen.classList.add('active');
+      }, 350);
+    }
+
+    /* ==========================================================================
+       11. LOOP PRINCIPAL COM DELTATIME INDEPENDENTE (60Hz / 120Hz / 180Hz)
+       ========================================================================== */
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      let dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      // Limita deltaTime a no máximo 0.05s para evitar saltos quânticos se a aba for minimizada
+      if (dt > 0.05) dt = 0.05;
+
+      // ATUALIZAÇÃO
+      if (gameState === 'PLAYING') {
+        // Aumenta suavemente a velocidade até o teto confortável
+        currentSpeed = Math.min(MAX_SPEED, BASE_SPEED + totalScore * 0.12);
+
+        // Subida contínua
+        scrollYOffset += currentSpeed * dt;
+        distanceClimbed = Math.floor(scrollYOffset / 28);
+        totalScore = distanceClimbed + (acornsCollected * 10);
+        scoreDisplay.innerHTML = `${totalScore} <span class="unit">m</span>`;
+
+        // Alerta de novo recorde durante o percurso
+        if (!hasBeatRecordThisRun && totalScore > highScore && highScore > 0) {
+          hasBeatRecordThisRun = true;
+          audio.playFanfare();
+          addFloatingText('NOVO RECORDE!', VIRTUAL_WIDTH / 2, virtualHeight * 0.4);
+        }
+
+        // Atualização dos obstáculos
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.update(dt, currentSpeed);
+          if (obs.y > virtualHeight + 80) {
+            obstacles.splice(i, 1);
+          }
+        }
+
+        // Atualização dos itens
+        for (let i = items.length - 1; i >= 0; i--) {
+          const item = items[i];
+          item.update(dt, currentSpeed);
+          if (item.y > virtualHeight + 80) {
+            items.splice(i, 1);
+          }
+        }
+
+        lastObstacleY += currentSpeed * dt;
+        spawnCourseElements();
+
+        player.update(dt);
+        checkCollisions();
+      } else if (gameState === 'START') {
+        // No menu inicial o esquilo fica aguardando carismaticamente
+        player.y = virtualHeight * 0.72;
+        player.update(dt);
+      }
+
+      updateParticlesAndTexts(dt);
+
+      // Tremor de tela com amortecimento
+      let shakeOffsetX = 0;
+      let shakeOffsetY = 0;
+      if (screenShake > 0) {
+        shakeOffsetX = (Math.random() - 0.5) * screenShake;
+        shakeOffsetY = (Math.random() - 0.5) * screenShake;
+        screenShake -= 45 * dt;
+        if (screenShake < 0) screenShake = 0;
+      }
+
+      // RENDERIZAÇÃO
+      ctx.save();
+      ctx.scale(scaleRatio, scaleRatio);
+      ctx.translate(shakeOffsetX, shakeOffsetY);
+
+      // Limpa e desenha cenário
+      drawEnvironment(ctx, dt);
+
+      // Desenha obstáculos
+      for (const obs of obstacles) {
+        obs.draw(ctx);
+      }
+
+      // Desenha frutas/nozes
+      for (const item of items) {
+        item.draw(ctx);
+      }
+
+      // Desenha partículas e textos flutuantes
+      drawParticlesAndTexts(ctx);
+
+      // Desenha esquilo
+      player.draw(ctx);
+
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame((now) => {
+      lastTime = now;
+      player.reset();
+      requestAnimationFrame(gameLoop);
+    });
+
+    /* ==========================================================================
+       12. CONTROLES UNIFICADOS (POINTERDOWN / TECLADO / CLIQUE)
+       ========================================================================== */
+    function handlePlayerAction(e) {
+      if (e) {
+        // Previne comportamentos padrão e zoom
+        if (e.cancelable && e.type !== 'keydown') e.preventDefault();
+      }
+
+      if (gameState === 'PLAYING') {
+        player.jump();
+      }
+    }
+
+    // Apenas toques na área jogável (Canvas ou container) disparam o pulo
+    container.addEventListener('pointerdown', (e) => {
+      // Ignora se o toque foi em botões de UI
+      if (e.target.closest('button') || e.target.closest('.screen-overlay.active')) {
+        return;
+      }
+      handlePlayerAction(e);
+    }, { passive: false });
+
+    // Suporte a teclado para Desktop (Espaço ou Setas)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.key === ' ' || e.code === 'ArrowUp' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        if (gameState === 'PLAYING') {
+          player.jump();
+        } else if (gameState === 'START') {
+          startGame();
+        } else if (gameState === 'GAMEOVER' && restartAllowed) {
+          startGame();
+        }
+      }
+    });
+
+    // Botão de Mute com parada de propagação garantida
+    muteBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const muted = audio.toggleMute();
+      muteBtn.textContent = muted ? '🔇' : '🔊';
+    });
+
+    // Botão Iniciar Jogo
+    startBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startGame();
+    });
+
+    // Botão Reiniciar Jogo
+    restartBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!restartAllowed) return;
+      startGame();
+    });
+
+  })();
+  </script>
+</body>
+</html>
