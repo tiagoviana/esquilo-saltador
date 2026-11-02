@@ -1459,35 +1459,56 @@
     /* ==========================================================================
        8. RENDERIZAÇÃO DO CENÁRIO, ÁRVORES E CÉU DINÂMICO
        ========================================================================== */
-    // Estrelas fixas para o céu noturno
+    // Estrelas com posições e cintilação contínuas
     const stars = Array.from({ length: 45 }, () => ({
       x: Math.random() * VIRTUAL_WIDTH,
-      y: Math.random() * 900,
+      y: Math.random() * 800,
       size: Math.random() * 1.8 + 0.8,
       twinkleOffset: Math.random() * Math.PI * 2
     }));
 
-    // Nuvens de paralaxe
+    // Nuvens em paralaxe contínuo e sem saltos
     const clouds = [
-      { x: 50, y: 120, width: 85, speed: 0.15 },
-      { x: 220, y: 340, width: 110, speed: 0.2 },
-      { x: 140, y: 580, width: 95, speed: 0.18 }
+      { x: 60, y: 100, width: 85, speed: 0.18 },
+      { x: 230, y: 320, width: 110, speed: 0.24 },
+      { x: 130, y: 560, width: 95, speed: 0.20 }
     ];
 
-    function drawEnvironment(c, dt) {
-      // 1. Transição de cor do céu baseada na pontuação
-      // 0 - 300m: Manhã ensolarada
-      // 300 - 800m: Pôr do sol alaranjado
-      // 800m+: Noite estrelada
-      let skyTop, skyBottom;
-      const m = distanceClimbed;
+    // Linhas de vento verticais (Sensação de velocidade fluida)
+    const speedLines = Array.from({ length: 12 }, () => ({
+      x: Math.random() * (VIRTUAL_WIDTH - 2 * WALL_WIDTH - 20) + WALL_WIDTH + 10,
+      y: Math.random() * 800,
+      length: Math.random() * 35 + 20,
+      speedMult: Math.random() * 0.4 + 1.15,
+      alpha: Math.random() * 0.18 + 0.08
+    }));
 
-      if (m < 300) {
-        const factor = m / 300;
+    // Folhas ambientes que esvoaçam ao vento
+    const ambientLeaves = Array.from({ length: 7 }, () => ({
+      x: Math.random() * (VIRTUAL_WIDTH - 2 * WALL_WIDTH - 20) + WALL_WIDTH + 10,
+      y: Math.random() * 800,
+      speedMult: Math.random() * 0.3 + 0.7,
+      size: Math.random() * 4 + 4,
+      angle: Math.random() * Math.PI * 2,
+      swayTimer: Math.random() * 10,
+      swaySpeed: Math.random() * 2 + 2,
+      color: Math.random() > 0.4 ? '#27ae60' : '#d35400'
+    }));
+
+    // Altura exata de repetição matemática dos troncos (sem quebra ou pulo)
+    const TRUNK_TILE_HEIGHT = 160;
+
+    function drawEnvironment(c, dt) {
+      // 1. Transição de cor do céu suave e contínua baseada em ponto flutuante
+      let skyTop, skyBottom;
+      const progress = scrollYOffset / 28;
+
+      if (progress < 300) {
+        const factor = progress / 300;
         skyTop = interpolateColor([79, 172, 254], [44, 62, 80], factor);
         skyBottom = interpolateColor([0, 242, 254], [253, 116, 108], factor);
-      } else if (m < 850) {
-        const factor = (m - 300) / 550;
+      } else if (progress < 850) {
+        const factor = (progress - 300) / 550;
         skyTop = interpolateColor([44, 62, 80], [11, 14, 20], factor);
         skyBottom = interpolateColor([253, 116, 108], [30, 39, 64], factor);
       } else {
@@ -1501,22 +1522,28 @@
       c.fillStyle = skyGrad;
       c.fillRect(0, 0, VIRTUAL_WIDTH, virtualHeight);
 
-      // Estrelas (aparecem conforme a noite cai)
-      if (m > 350) {
-        const starAlpha = Math.min(1, (m - 350) / 450);
+      // Estrelas cintilantes (aparecem suavemente conforme a noite cai)
+      if (progress > 320) {
+        const starAlpha = Math.min(1, (progress - 320) / 450);
         const time = Date.now() * 0.003;
         for (const star of stars) {
-          const starY = (star.y + scrollYOffset * 0.1) % virtualHeight;
+          // Movimento contínuo sem modulo
+          star.y += currentSpeed * dt * 0.07;
+          if (star.y > virtualHeight + 10) {
+            star.y = -10;
+            star.x = Math.random() * VIRTUAL_WIDTH;
+          }
+
           const tw = 0.5 + Math.sin(time + star.twinkleOffset) * 0.5;
           c.fillStyle = `rgba(255, 255, 255, ${starAlpha * tw * 0.85})`;
           c.beginPath();
-          c.arc(star.x, starY, star.size, 0, Math.PI * 2);
+          c.arc(star.x, star.y, star.size, 0, Math.PI * 2);
           c.fill();
         }
 
         // Lua crescente graciosa à noite
-        if (m > 650) {
-          const moonAlpha = Math.min(1, (m - 650) / 300);
+        if (progress > 650) {
+          const moonAlpha = Math.min(1, (progress - 650) / 300);
           c.save();
           c.globalAlpha = moonAlpha;
           c.fillStyle = '#fff9d2';
@@ -1531,63 +1558,206 @@
         }
       }
 
-      // Nuvens em paralaxe
+      // Montanhas e silhueta distante de copas em paralaxe suave
+      drawParallaxHills(c, dt, progress);
+
+      // Nuvens em paralaxe com reciclagem contínua sem pulo
       for (const cloud of clouds) {
-        cloud.y = (cloud.y + currentSpeed * dt * cloud.speed) % (virtualHeight + 100);
+        cloud.y += currentSpeed * dt * cloud.speed;
+        if (cloud.y > virtualHeight + 80) {
+          cloud.y = -80;
+          cloud.x = Math.random() * (VIRTUAL_WIDTH - 140) + 70;
+        }
+
         c.save();
-        c.fillStyle = (m > 750) ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.28)';
+        c.fillStyle = (progress > 750) ? 'rgba(255, 255, 255, 0.07)' : 'rgba(255, 255, 255, 0.26)';
         c.beginPath();
-        c.ellipse(cloud.x, cloud.y - 50, cloud.width * 0.5, 18, 0, 0, Math.PI * 2);
-        c.ellipse(cloud.x - 18, cloud.y - 50, cloud.width * 0.3, 14, 0, 0, Math.PI * 2);
-        c.ellipse(cloud.x + 18, cloud.y - 50, cloud.width * 0.35, 15, 0, 0, Math.PI * 2);
+        c.ellipse(cloud.x, cloud.y, cloud.width * 0.5, 18, 0, 0, Math.PI * 2);
+        c.ellipse(cloud.x - 18, cloud.y, cloud.width * 0.3, 14, 0, 0, Math.PI * 2);
+        c.ellipse(cloud.x + 18, cloud.y, cloud.width * 0.35, 15, 0, 0, Math.PI * 2);
         c.fill();
         c.restore();
       }
 
-      // 2. Troncos das árvores laterais com textura e folhagens
-      drawTreeWall(c, 0, WALL_WIDTH, true);
-      drawTreeWall(c, VIRTUAL_WIDTH - WALL_WIDTH, WALL_WIDTH, false);
+      // Linhas de velocidade suaves ao fundo
+      drawSpeedLines(c, dt);
+
+      // Folhas flutuantes ao vento
+      drawAmbientLeaves(c, dt);
+
+      // 2. Troncos das árvores laterais com repetição contínua e perfeita
+      drawSeamlessTreeWall(c, 0, WALL_WIDTH, true);
+      drawSeamlessTreeWall(c, VIRTUAL_WIDTH - WALL_WIDTH, WALL_WIDTH, false);
     }
 
-    function drawTreeWall(c, x, width, isLeft) {
+    // Camada de colinas distantes para dar profundidade espacial
+    function drawParallaxHills(c, dt, progress) {
       c.save();
-      // Casca da árvore
-      c.fillStyle = '#5A3825';
-      c.fillRect(x, 0, width, virtualHeight);
+      const hillOffset = (scrollYOffset * 0.1) % 240;
+      c.fillStyle = (progress > 700) ? 'rgba(15, 25, 38, 0.45)' : 'rgba(39, 75, 96, 0.32)';
 
-      // Sombra interna da quina
-      c.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      if (isLeft) {
-        c.fillRect(x + width - 8, 0, 8, virtualHeight);
-      } else {
-        c.fillRect(x, 0, 8, virtualHeight);
+      c.beginPath();
+      c.moveTo(0, virtualHeight);
+      for (let x = 0; x <= VIRTUAL_WIDTH; x += 40) {
+        const hillY = virtualHeight - 110 + Math.sin((x + hillOffset) * 0.018) * 28;
+        c.lineTo(x, hillY);
       }
+      c.lineTo(VIRTUAL_WIDTH, virtualHeight);
+      c.closePath();
+      c.fill();
+      c.restore();
+    }
 
-      // Ranhuras da madeira que rolam com a subida
-      const barkScroll = scrollYOffset % 60;
-      c.strokeStyle = '#432818';
-      c.lineWidth = 2.5;
-      for (let y = -60 + barkScroll; y < virtualHeight + 60; y += 45) {
+    // Desenho de linhas de vento suaves para reforçar velocidade vertical
+    function drawSpeedLines(c, dt) {
+      c.save();
+      c.lineWidth = 1.5;
+      c.lineCap = 'round';
+
+      for (const line of speedLines) {
+        line.y += currentSpeed * dt * line.speedMult;
+        if (line.y > virtualHeight + line.length) {
+          line.y = -line.length;
+          line.x = Math.random() * (VIRTUAL_WIDTH - 2 * WALL_WIDTH - 20) + WALL_WIDTH + 10;
+          line.length = Math.random() * 35 + 20;
+          line.alpha = Math.random() * 0.18 + 0.08;
+        }
+
+        c.strokeStyle = `rgba(255, 255, 255, ${line.alpha})`;
         c.beginPath();
-        const startX = isLeft ? x + 10 : x + width - 10;
-        const endX = isLeft ? x + width - 14 : x + 14;
-        c.moveTo(startX, y);
-        c.quadraticCurveTo((startX + endX) / 2, y + 14, endX, y + 4);
+        c.moveTo(line.x, line.y);
+        c.lineTo(line.x, line.y + line.length);
         c.stroke();
       }
+      c.restore();
+    }
 
-      // Tufos de folhas verdes saindo do tronco
-      const leafScroll = scrollYOffset % 140;
-      c.fillStyle = '#27ae60';
-      for (let y = -140 + leafScroll; y < virtualHeight + 140; y += 110) {
+    // Desenho de folhas ambientes que giram e descem fluidamente
+    function drawAmbientLeaves(c, dt) {
+      c.save();
+      for (const leaf of ambientLeaves) {
+        leaf.y += currentSpeed * dt * leaf.speedMult;
+        leaf.swayTimer += dt * leaf.swaySpeed;
+        const swayX = Math.sin(leaf.swayTimer) * 14;
+
+        if (leaf.y > virtualHeight + 25) {
+          leaf.y = -25;
+          leaf.x = Math.random() * (VIRTUAL_WIDTH - 2 * WALL_WIDTH - 20) + WALL_WIDTH + 10;
+        }
+
+        c.save();
+        c.translate(leaf.x + swayX, leaf.y);
+        c.rotate(leaf.angle + Math.sin(leaf.swayTimer) * 0.5);
+        c.fillStyle = leaf.color;
+        c.globalAlpha = 0.65;
         c.beginPath();
-        const leafX = isLeft ? x + width : x;
-        const dir = isLeft ? 1 : -1;
-        c.ellipse(leafX + 4 * dir, y, 12, 6, 0.3 * dir, 0, Math.PI * 2);
+        c.ellipse(0, 0, leaf.size, leaf.size * 0.5, 0, 0, Math.PI * 2);
         c.fill();
+        c.restore();
+      }
+      c.restore();
+    }
+
+    // Renderização perfeitamente contínua dos troncos das árvores laterais
+    function drawSeamlessTreeWall(c, x, width, isLeft) {
+      c.save();
+
+      // Fundo contínuo do tronco
+      c.fillStyle = '#54331e';
+      c.fillRect(x, 0, width, virtualHeight);
+
+      // Sombra e relevo nas extremidades
+      c.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      if (isLeft) {
+        c.fillRect(x + width - 9, 0, 9, virtualHeight);
+      } else {
+        c.fillRect(x, 0, 9, virtualHeight);
+      }
+
+      // Luz sutil na borda externa
+      c.fillStyle = 'rgba(255, 255, 255, 0.07)';
+      if (isLeft) {
+        c.fillRect(x, 0, 5, virtualHeight);
+      } else {
+        c.fillRect(x + width - 5, 0, 5, virtualHeight);
+      }
+
+      // Repetição com período e passo estritamente idênticos (TRUNK_TILE_HEIGHT)
+      // Isso elimina 100% de qualquer pulo ou solavanco visual!
+      const scrollOffset = scrollYOffset % TRUNK_TILE_HEIGHT;
+      for (let y = -TRUNK_TILE_HEIGHT + scrollOffset; y < virtualHeight + TRUNK_TILE_HEIGHT; y += TRUNK_TILE_HEIGHT) {
+        drawTrunkTile(c, x, y, width, isLeft, TRUNK_TILE_HEIGHT);
       }
 
       c.restore();
+    }
+
+    // Desenha um segmento de tronco texturizado com nós, ranhuras e folhas
+    function drawTrunkTile(c, x, y, width, isLeft, tileH) {
+      const innerX = isLeft ? x + width - 11 : x + 11;
+      const outerX = isLeft ? x + 11 : x + width - 11;
+
+      // 1. Ranhuras e fissuras da madeira
+      c.strokeStyle = '#382011';
+      c.lineWidth = 2.4;
+      c.lineCap = 'round';
+
+      // Fissura 1
+      c.beginPath();
+      c.moveTo(outerX, y + 16);
+      c.quadraticCurveTo((outerX + innerX) / 2, y + 26, innerX, y + 18);
+      c.stroke();
+
+      // Fissura 2
+      c.beginPath();
+      c.moveTo(innerX, y + 62);
+      c.quadraticCurveTo((outerX + innerX) / 2, y + 74, outerX, y + 68);
+      c.stroke();
+
+      // Fissura 3
+      c.beginPath();
+      c.moveTo(outerX, y + 108);
+      c.quadraticCurveTo((outerX + innerX) / 2, y + 120, innerX, y + 114);
+      c.stroke();
+
+      // 2. Nó natural na madeira com anel
+      const knotY = y + 84;
+      const knotX = isLeft ? x + 24 : x + width - 24;
+      c.fillStyle = '#3E2413';
+      c.beginPath();
+      c.ellipse(knotX, knotY, 6, 9, 0, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#2B170B';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.ellipse(knotX, knotY, 9, 13, 0, 0, Math.PI * 2);
+      c.stroke();
+
+      // 3. Mancha de musgo aveludado
+      c.fillStyle = 'rgba(46, 125, 50, 0.45)';
+      c.beginPath();
+      c.ellipse(knotX - (isLeft ? 4 : -4), y + 130, 8, 14, 0.2, 0, Math.PI * 2);
+      c.fill();
+
+      // 4. Folhagens vivas saindo do tronco em direção ao centro
+      const edgeX = isLeft ? x + width : x;
+      const dir = isLeft ? 1 : -1;
+
+      // Primeiro cacho de folhas (y + 40)
+      c.fillStyle = '#1e8449';
+      c.beginPath();
+      c.ellipse(edgeX + 5 * dir, y + 38, 11, 6, 0.25 * dir, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#27ae60';
+      c.beginPath();
+      c.ellipse(edgeX + 4 * dir, y + 44, 9, 5, -0.2 * dir, 0, Math.PI * 2);
+      c.fill();
+
+      // Segundo cacho de folhas (y + 122)
+      c.fillStyle = '#2ecc71';
+      c.beginPath();
+      c.ellipse(edgeX + 4 * dir, y + 122, 10, 5, 0.3 * dir, 0, Math.PI * 2);
+      c.fill();
     }
 
     function interpolateColor(c1, c2, factor) {
@@ -1773,7 +1943,8 @@
         player.update(dt);
         checkCollisions();
       } else if (gameState === 'START') {
-        // No menu inicial o esquilo fica aguardando carismaticamente
+        // No menu inicial o esquilo aguarda e o cenário rola tranquilamente
+        scrollYOffset += 50 * dt;
         player.y = virtualHeight * 0.72;
         player.update(dt);
       }
@@ -1796,6 +1967,7 @@
       ctx.translate(shakeOffsetX, shakeOffsetY);
 
       // Limpa e desenha cenário
+      ctx.clearRect(0, 0, VIRTUAL_WIDTH, virtualHeight);
       drawEnvironment(ctx, dt);
 
       // Desenha obstáculos
